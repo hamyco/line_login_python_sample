@@ -6,6 +6,9 @@ This is a LINE Login sample created by Python.
  - Flask
 
 # How to run
+ - Open run.sh and input your channel ID and channel secret.
+ - Launch the program.
  ```markdown
- python app.py
+ cd [THE_PROJECT_PATH]
+ bash run.sh
 ```
