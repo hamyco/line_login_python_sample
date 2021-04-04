@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block content %}
+<h3>Result</h3>
+{#
+{% for key in parameters.keys() %}
+<li>{{ key }} : {{ parameters[key] }}</li>
+{% endfor %}
+#}
+<code>{{ result }}</code>
+</br>
+<h3>ID Token</h3>
+<code>{{ id_token }}</code>
+
+<h3>Login parameter</h3>
+<code>code_challenge : {{ code_challenge }}</code>
+</br>
+<code>code_verifier : {{ code_verifier }}</code>
+</br>
+<code>state : {{ state }}</code>
+</br>
+<code>nonce : {{ nonce }}</code>
+</br>
+</br>
+<a href="/">Back to home</a>
+{% endblock %}
