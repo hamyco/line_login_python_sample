@@ -15,10 +15,11 @@ app.code_verifier = token_manager.generate(43)
 app.code_challenge = token_manager.convert2sha256(app.code_verifier)
 app.code_challenge_method = 'S256'
 app.line_api_domain = 'https://access.line.me/'
-app.redirect_ur_name = '/callback'
+app.redirect_url_dir = '/callback'
 app.authorize_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/authorize')
 app.token_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/token')
 app.result_for_dump = None
+
 
 @app.route('/')
 def homepage():
@@ -33,7 +34,7 @@ def goto_authorization():
         'response_type': 'code',
         'client_id': app.line_channel_id,
         'redirect_uri': urllib.parse.quote(
-            urllib.parse.urljoin(request.url_root, app.redirect_ur_name), safe='').replace('http%3A', 'https%3A'),
+            urllib.parse.urljoin(request.url_root, app.redirect_url_dir), safe=''),
         'scope': '%20'.join(scope_list),
         # PKCE support
         'code_challenge_method': app.code_challenge_method,
@@ -51,7 +52,7 @@ def goto_authorization():
     return redirect(app.authorize_api + '?' + '&'.join(url_params))
 
 
-@app.route(app.redirect_ur_name, methods=['GET', 'POST'])
+@app.route(app.redirect_url_dir, methods=['GET', 'POST'])
 def callback():
     print(request)
     state = ''
@@ -72,10 +73,10 @@ def callback():
     result_json_data = get_access_token(code)
 
     decoded_id_token = check_id_token(result_json_data['id_token'], app.line_channel_secret, app.line_channel_id)
-    app.result_for_dump = json.dumps(result_json_data, indent=2)
-    app.decoded_id_token = decoded_id_token
+    app.result_for_dump = json.dumps(result_json_data, indent=4)
+    app.decoded_id_token = json.dumps(decoded_id_token, indent=4)
 
-    return redirect(urllib.parse.urljoin(request.url_root, '/result').replace('http://', 'https://'))
+    return redirect(urllib.parse.urljoin(request.url_root, '/result'))
 
 
 @app.route('/result', methods=['GET'])
@@ -99,7 +100,7 @@ def get_access_token(code):
     data_params = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": urllib.parse.urljoin(request.url_root, app.redirect_ur_name).replace('http:', 'https:'),
+        "redirect_uri": urllib.parse.urljoin(request.url_root, app.redirect_url_dir),
         "client_id": app.line_channel_id,
         "code_verifier": app.code_verifier,
         "client_secret": app.line_channel_secret
