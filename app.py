@@ -133,6 +133,7 @@ if __name__ == "__main__":
     arg_parser.add_argument('-d', '--debug', default=False, help='debug')
     arg_parser.add_argument('-s', '--channelsecret', type=str, help='your channel secret')
     arg_parser.add_argument('-c', '--channelid', type=str, help='your channel id')
+    arg_parser.add_argument('-t', '--host', type=str, default='0.0.0.0', help='your channel id')
     options = arg_parser.parse_args()
 
     if options.channelid:
@@ -153,4 +154,4 @@ if __name__ == "__main__":
             print('Please set up Channel Secret by environment parameter(LINE_LOGIN_CHANNEL_SECRET) or'
                   ' use --channelsecret option')
             exit(1)
-    app.run(debug=options.debug, port=options.port)
+    app.run(debug=options.debug, port=options.port, host=options.host)
