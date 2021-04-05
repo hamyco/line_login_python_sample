@@ -9,8 +9,6 @@ from argparse import ArgumentParser
 
 app = Flask(__name__)
 
-app.line_channel_id = os.environ['LINE_LOGIN_CHANNEL_ID']
-app.line_channel_secret = os.environ['LINE_LOGIN_CHANNEL_SECRET']
 app.state = token_manager.generate()
 app.nonce = token_manager.generate()
 app.code_verifier = token_manager.generate(43)
@@ -36,13 +34,13 @@ def goto_authorization():
         'client_id': app.line_channel_id,
         'redirect_uri': urllib.parse.quote(
             urllib.parse.urljoin(request.url_root, app.redirect_ur_name), safe='').replace('http%3A', 'https%3A'),
-        'state': app.state,
-        'nonce': app.nonce,
         'scope': '%20'.join(scope_list),
-
         # PKCE support
         'code_challenge_method': app.code_challenge_method,
-        'code_challenge': app.code_challenge
+        'code_challenge': app.code_challenge,
+        # state and nonce
+        'state': app.state,
+        'nonce': app.nonce
     }
     url_params = []
     for k in list(params.keys()):
@@ -133,6 +131,27 @@ if __name__ == "__main__":
     )
     arg_parser.add_argument('-p', '--port', type=int, default=5000, help='port')
     arg_parser.add_argument('-d', '--debug', default=True, help='debug')
+    arg_parser.add_argument('-s', '--channelsecret', type=str, help='your channel secret')
+    arg_parser.add_argument('-c', '--channelid', type=str, help='your channel id')
     options = arg_parser.parse_args()
+
+    if options.channelid:
+        app.line_channel_id = options.channelid
+    else:
+        if os.getenv('LINE_LOGIN_CHANNEL_ID'):
+            app.line_channel_id = os.environ['LINE_LOGIN_CHANNEL_ID']
+        else:
+            print('Please set up Channel ID by environment parameter(LINE_LOGIN_CHANNEL_ID) or use --channelid option')
+            exit(1)
+
+    if options.channelsecret:
+        app.line_channel_secret = options.channelsecret
+    else:
+        if os.getenv('LINE_LOGIN_CHANNEL_SECRET'):
+            app.line_channel_secret = os.environ['LINE_LOGIN_CHANNEL_SECRET']
+        else:
+            print('Please set up Channel Secret by environment parameter(LINE_LOGIN_CHANNEL_SECRET) or'
+                  ' use --channelsecret option')
+            exit(1)
 
     app.run(debug=options.debug, port=options.port)
