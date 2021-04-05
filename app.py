@@ -28,12 +28,7 @@ app.decoded_id_token = None
 
 @app.route('/')
 def homepage():
-    print("  1 (request.root_url) : " + request.url_root)
-    temp = request.url_root
-    request.url_root = temp.replace('http://', 'https://')
-    print("  2 (request.root_url) : " + request.url_root)
-    name = "Hello World"
-    return render_template('index.html', title='flask test', name=name)
+    return render_template('index.html', title='Line Login Sample')
 
 
 @app.route('/gotoauthpage', methods=["GET"])
@@ -93,7 +88,7 @@ def result():
     if app.result_for_dump is None:
         abort(400)
     return render_template('result.html',
-                           title='result',
+                           title='Login Result',
                            result=app.result_for_dump,
                            id_token=app.decoded_id_token,
                            code_challenge=app.code_challenge,
