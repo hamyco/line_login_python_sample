@@ -13,10 +13,10 @@ app = Flask(__name__)
 # If using proxy(like nginx, ngrok), the http will request.url_root will return http (not https)
 # In this case, we need to fix the proxy.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
-app.state = token_manager.generate()
-app.nonce = token_manager.generate()
-app.code_verifier = token_manager.generate(43)
-app.code_challenge = token_manager.convert2sha256(app.code_verifier)
+app.state = None
+app.nonce = None
+app.code_verifier = None
+app.code_challenge = None
 app.code_challenge_method = 'S256'
 app.line_api_domain = 'https://access.line.me/'
 app.redirect_url_dir = '/callback'
@@ -28,7 +28,15 @@ app.decoded_id_token = None
 
 @app.route('/')
 def homepage():
-    return render_template('index.html', title='Line Login Sample')
+    refresh_login_parameters()
+    return render_template(
+        'index.html',
+        title='Line Login Sample',
+        code_challenge=app.code_challenge,
+        code_verifier=app.code_verifier,
+        nonce=app.nonce,
+        state=app.state
+    )
 
 
 @app.route('/gotoauthpage', methods=["GET"])
@@ -128,6 +136,18 @@ def check_id_token(id_token, channel_secret, channel_id):
         raise RuntimeError('invalid nonce')
     return decoded_id_token
 
+
+def refresh_login_parameters():
+    app.state = token_manager.generate()
+    app.nonce = token_manager.generate()
+    app.code_verifier = token_manager.generate(43)
+    app.code_challenge = token_manager.convert2sha256(app.code_verifier)
+    return {
+        'state': app.state,
+        'nonce': app.nonce,
+        'code_verifier': app.code_verifier,
+        'code_challenge': app.code_challenge
+    }
 
 if __name__ == "__main__":
     arg_parser = ArgumentParser(
