@@ -1,1 +1,1 @@
-web: python app.py --port 5000
+web: python app.py --port $PORT
