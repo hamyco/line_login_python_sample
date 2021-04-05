@@ -23,6 +23,7 @@ app.redirect_url_dir = '/callback'
 app.authorize_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/authorize')
 app.token_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/token')
 app.result_for_dump = None
+app.decoded_id_token = None
 
 
 @app.route('/')
@@ -95,8 +96,8 @@ def result():
                            title='result',
                            result=app.result_for_dump,
                            id_token=app.decoded_id_token,
-                           code_challenge = app.code_challenge,
-                           code_verifier = app.code_verifier,
+                           code_challenge=app.code_challenge,
+                           code_verifier=app.code_verifier,
                            nonce=app.nonce,
                            state=app.state)
 
@@ -128,7 +129,6 @@ def check_id_token(id_token, channel_secret, channel_id):
 
     # check nonce (Optional. But strongly recommended)
     nonce = app.nonce
-    expected_nonce = decoded_id_token.get('nonce')
     if nonce != decoded_id_token.get('nonce'):
         raise RuntimeError('invalid nonce')
     return decoded_id_token
@@ -142,6 +142,7 @@ if __name__ == "__main__":
     arg_parser.add_argument('-d', '--debug', default=False, help='debug')
     arg_parser.add_argument('-s', '--channelsecret', type=str, help='your channel secret')
     arg_parser.add_argument('-c', '--channelid', type=str, help='your channel id')
+    # If executing program on remote (not localhost), the host needs to be set 0.0.0.0
     arg_parser.add_argument('-t', '--host', type=str, default='0.0.0.0', help='your channel id')
     options = arg_parser.parse_args()
 
@@ -163,6 +164,5 @@ if __name__ == "__main__":
             print('Please set up Channel Secret by environment parameter(LINE_LOGIN_CHANNEL_SECRET) or'
                   ' use --channelsecret option')
             exit(1)
-
 
     app.run(debug=options.debug, port=options.port, host=options.host)
