@@ -33,6 +33,6 @@ With the "Deploy to Heroku" button, you can easily deploy the LINE Login starter
  - Execute the following command on Terminal
 ``` 
 cd [THE_PROJECT_PATH]
-bash run.sh
-  ```
+python app.py --port 8080 -t 127.0.0.1 --debug True
+```
 

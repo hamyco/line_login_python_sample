@@ -6,9 +6,13 @@ import json
 import jwt
 import os
 from argparse import ArgumentParser
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 
+# If using proxy(like nginx, ngrok), the http will request.url_root will return http (not https)
+# In this case, we need to fix the proxy.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
 app.state = token_manager.generate()
 app.nonce = token_manager.generate()
 app.code_verifier = token_manager.generate(43)
@@ -23,6 +27,10 @@ app.result_for_dump = None
 
 @app.route('/')
 def homepage():
+    print("  1 (request.root_url) : " + request.url_root)
+    temp = request.url_root
+    request.url_root = temp.replace('http://', 'https://')
+    print("  2 (request.root_url) : " + request.url_root)
     name = "Hello World"
     return render_template('index.html', title='flask test', name=name)
 
@@ -155,4 +163,6 @@ if __name__ == "__main__":
             print('Please set up Channel Secret by environment parameter(LINE_LOGIN_CHANNEL_SECRET) or'
                   ' use --channelsecret option')
             exit(1)
+
+
     app.run(debug=options.debug, port=options.port, host=options.host)

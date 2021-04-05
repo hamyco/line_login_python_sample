@@ -1,12 +1,14 @@
-@import url(http://fonts.googleapis.com/css?family=Oleo+Script+Swash+Caps);
-
 body{
   background-color:#dddddd;
   color : #000000;
   margin-right: auto;//ここで中央寄せを指定する。
   margin-left : auto;
   width:700px;
-  font-size:62.5%;
+  font-size:large;
+}
+.area-margin {
+  text-align: center;
+  margin: 30px 10px;
 }
 
 div#clock_frame
@@ -14,22 +16,60 @@ div#clock_frame
     width: 100%;
 }
 
+textarea
+{
+  font-size:medium
+}
+
+code
+{
+  font-size:small
+}
+
 span
 {
     display: block;
     float: right;
-    width: 85%;
+    width: 100%;
     font-family: 'Oleo Script Swash Caps', cursive;
 }
 
 span#clock_date
 {
     text-align: right;
-    font-size: 0.5em;
-    padding-right: 0.5em;
+    font-size: 1em;
+    padding-right: 2em;
 }
 
 span#clock_time
 {
     font-size: 2em;
+}
+
+a
+{
+  color: #337ab7;
+  text-decoration: none;
+  font-size: large;
+}
+
+#web-login-button a {
+  width: 151px;
+  height: 44px;
+  background: url("../img/btn_login_base.png") no-repeat;
+  display: block;
+}
+
+.profile-img {
+  width: 100px;
+  height: 100px;
+  max-width: 100%;
+}
+.profile-margin {
+  text-align: center;
+  margin: 10px;
+}
+
+.profile-button {
+  margin: 20px 0
 }
