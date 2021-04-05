@@ -1,0 +1,15 @@
+{
+    "name": "LINE Login Sample",
+    "description": "This is a sample application for the LINE Login API",
+    "keywords": ["login", "line", "python"],
+    "env": {
+        "LINE_LOGIN_CHANNEL_ID": {
+            "description": "LINE Login Channel ID from the Channel Console",
+            "required":  true
+        },
+        "LINE_LOGIN_CHANNEL_SECRET": {
+            "description": "LINE Login Channel secret from the Channel Console",
+            "required":  true
+        }
+    }
+}
