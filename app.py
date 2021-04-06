@@ -74,6 +74,8 @@ def goto_authorization():
     session_id = request.args['session_id']
 
     login_params = refresh_login_parameters()
+    print("login params :")
+    print(login_params)
     meta_data = app.meta_data_manager.get_user_meta_data(session_id)
     print(meta_data)
     meta_data.state = login_params['state']
