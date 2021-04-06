@@ -85,7 +85,7 @@ def goto_authorization():
 
     print('---------')
     for p in meta_data.__dict__.keys():
-        print(p + " : " + meta_data.__dict__[p])
+        print(meta_data.__dict__[p])
     print('---------')
     scope_list = ['openid', 'profile']
     params = {
