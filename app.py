@@ -82,9 +82,11 @@ def goto_authorization():
     meta_data.nonce = login_params['nonce']
     meta_data.code_verifier = login_params['code_verifier']
     meta_data.code_challenge = login_params['code_challenge']
+
+    print('---------')
     for p in meta_data.__dict__.keys():
         print(p + " : " + meta_data.__dict__[p])
-
+    print('---------')
     scope_list = ['openid', 'profile']
     params = {
         'response_type': 'code',
