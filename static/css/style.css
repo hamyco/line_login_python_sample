@@ -1,7 +1,7 @@
 body{
-  background-color:#dddddd;
+  background-color:#DDDDDD;
   color : #000000;
-  margin-right: auto;//ここで中央寄せを指定する。
+  margin-right: auto;
   margin-left : auto;
   width:700px;
   font-size:large;
@@ -13,7 +13,7 @@ body{
 
 div#clock_frame
 {
-    width: 100%;
+    width: 50%;
 }
 
 textarea
@@ -39,11 +39,6 @@ span#clock_date
     text-align: right;
     font-size: 1em;
     padding-right: 2em;
-}
-
-span#clock_time
-{
-    font-size: 2em;
 }
 
 a

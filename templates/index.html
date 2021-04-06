@@ -3,31 +3,39 @@
 <link rel="stylesheet" href="static/css/line-login.css" />
 <script src="static/js/clock.js"></script>
 <div class="container" style="text-align:center;">
-<h3>Hello, This is a sample of LINE Login. </h3>
 <div id="clock_frame">
     <font size="10" face="impact">
         <span id="clock_date_time"></span>
     </font>
     </div>
+    {% if picture_url %}
+    <img src= "{{picture_url}}" class="profile-img img-circle" />
+    {% endif %}
+    <h3>Hello {{name}}, This is a sample of LINE Login. </h3>
 </div>
+
 <div class="container">
     <div class="row">
-        <div class="col-md-4 col-md-offset-4">
-            <div class="area">
+        <div>
+            <div class="area" style="text-align:center;">
+                {% if logged_in == False%}
                 <h4 class="text-center area-margin">LINE Web Login</h4>
                 <div id="web-login-button" class="center-block area-margin">
-                    <a class="center-block" href=gotoauthpage></a>
+                    <a class="center-block" href=login></a>
                 </div>
+                {% else %}
+                <h4 class="text-center area-margin">You have logged in!</h4>
+                <div>
+                    <a href="logout" style="font-size:large;">Logout</a>
+                </div>
+                {% endif %}
             </div>
+            <h3 class="text-center area-margin">Previous Login Parameter</h3>
             <div class="area", style="text-align:left;">
-                code_challenge : <code>{{ code_challenge }}</code>
-                </br>
-                code_verifier : <code>{{ code_verifier }}</code>
-                </br>
-                state : <code>{{ state }}</code>
-                </br>
-                nonce : <code>{{ nonce }}</code>
-                </br>
+                {% for p in data.keys() %}
+                {{ p }} : <code>{{ data[p] }}</code>
+                <br>
+                {% endfor %}
             </div>
         </div>
     </div>
