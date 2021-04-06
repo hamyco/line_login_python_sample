@@ -35,7 +35,7 @@ def homepage():
     if "session_id" in session and session["session_id"]:
         session_id = session["session_id"]
         server_data = app.meta_data_manager.get_user_meta_data(session_id)
-        if server_data:
+        if server_data and server_data.user_name:
             logged_in = True
             name = server_data.user_name
             picture_url = server_data.user_picture_url
