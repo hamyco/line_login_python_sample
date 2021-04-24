@@ -1,17 +1,35 @@
 # coding: utf-8
 
-from flask import Flask, render_template, redirect, request, abort, session
+from flask import Flask, render_template, redirect, request, abort, session, make_response
 import token_manager
 import urllib.parse
 import requests
 import json
 import jwt
 import os
+from datetime import datetime
 from argparse import ArgumentParser
 from werkzeug.middleware.proxy_fix import ProxyFix
 from meta_data_manager import UserMetaDataManager
+import sqlite3
+
+
+# Cookies
+SESSION_COOKIE_SECURE = True # https only
+SESSION_HTTPONLY = True   # httponly
+SESSION_ID_NAME = '__session_key'
+COOKIE_TIME = 60 * 60 * 24 * 30  # 30 days
+
+
+# web page contents
+DEFAULT_USERNAME = 'User'
 
 app = Flask(__name__)
+
+
+# Server setting
+# Reference:  https://flask.palletsprojects.com/en/1.1.x/config/
+app.config['SECRET_KEY'] = 'd25Pu2LLrBdFfGtNe16v5Q'
 
 # If using proxy(like nginx, ngrok), the http will request.url_root will return http (not https)
 # In this case, we need to fix the proxy.
@@ -25,15 +43,31 @@ app.token_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/token')
 app.meta_data_manager = UserMetaDataManager()
 
 
+@app.before_request
+def before_request():
+    if app.testing:
+        return
+
+    # If access static files,'/' or '/login', don't need to check.
+    if request.path.startswith('/static/') or request.path == '/login' or request.path == '/':
+        return
+
+    # check if session_id exists
+    if session.get(SESSION_ID_NAME) is not None:
+        return
+    else:
+        return redirect('/')
+
+
 @app.route('/')
 def homepage():
-    name = 'User'
+    name = DEFAULT_USERNAME
     picture_url = None
     previous_data = {}
     logged_in = False
 
-    if "session_id" in session and session["session_id"]:
-        session_id = session["session_id"]
+    if SESSION_ID_NAME in session and session[SESSION_ID_NAME]:
+        session_id = session[SESSION_ID_NAME]
         server_data = app.meta_data_manager.get_user_meta_data(session_id)
         if server_data and server_data.user_name:
             logged_in = True
@@ -41,7 +75,9 @@ def homepage():
             picture_url = server_data.user_picture_url
             for p in server_data.__dict__.keys():
                 previous_data[p] = server_data.__dict__[p]
-            previous_data['session_id'] = session_id
+            previous_data[SESSION_ID_NAME] = session_id
+        else:
+            session.pop(SESSION_ID_NAME)
 
     return render_template(
         'index.html',
@@ -57,36 +93,35 @@ def homepage():
 def login():
     session_id = ''
     # template session register
-    if not ("session_id" in session and session["session_id"]):
+    if not (SESSION_ID_NAME in session and session[SESSION_ID_NAME]):
         session_id = token_manager.generate()
-        session["session_id"] = session_id
+        session[SESSION_ID_NAME] = session_id
         app.meta_data_manager.append_user_meta_data(
             session_id,
             None
         )
     else:
-        session_id = session["session_id"]
-    return redirect('/gotoauth?' + 'session_id=' + session_id)
+        session_id = session[SESSION_ID_NAME]
+    return redirect('/gotoauth?' + SESSION_ID_NAME + '=' + session_id)
 
 
 @app.route('/gotoauth', methods=["GET"])
 def goto_authorization():
-    session_id = request.args['session_id']
+    session_id = request.args[SESSION_ID_NAME]
 
     login_params = refresh_login_parameters()
     print("login params :")
     print(login_params)
     meta_data = app.meta_data_manager.get_user_meta_data(session_id)
-    print(meta_data)
     meta_data.state = login_params['state']
     meta_data.nonce = login_params['nonce']
     meta_data.code_verifier = login_params['code_verifier']
     meta_data.code_challenge = login_params['code_challenge']
 
-    print('---------')
+    print('---------\n[Meta data]\n')
     for p in meta_data.__dict__.keys():
         print(meta_data.__dict__[p])
-    print('---------')
+
     scope_list = ['openid', 'profile']
     params = {
         'response_type': 'code',
@@ -157,10 +192,10 @@ def callback():
 
 @app.route('/error_result', methods=['GET'])
 def error_result():
-    if not ("session_id" in session and session["session_id"]):
+    if not (SESSION_ID_NAME in session and session[SESSION_ID_NAME]):
         return render_template('error_result.html')
 
-    session_id = session['session_id']
+    session_id = session[SESSION_ID_NAME]
     error_data = None
     meta_data = app.meta_data_manager.get_user_meta_data(session_id)
     if 'error_data' in meta_data.__dict__.keys():
@@ -171,9 +206,9 @@ def error_result():
 
 @app.route('/result', methods=['GET'])
 def result():
-    if not ('session_id' in session and session['session_id']):
+    if not (SESSION_ID_NAME in session and session[SESSION_ID_NAME]):
         return render_template('error_result.html', result='Session Not Found')
-    session_id = session['session_id']
+    session_id = session[SESSION_ID_NAME]
     meta_data = app.meta_data_manager.get_user_meta_data(session_id)
 
     return render_template('result.html',
@@ -189,7 +224,7 @@ def result():
 
 @app.route('/logout')
 def logout():
-    session.pop('session_id', None)
+    session.pop(SESSION_ID_NAME, None)
     return redirect("/")
 
 
@@ -245,8 +280,9 @@ if __name__ == "__main__":
     arg_parser.add_argument('-d', '--debug', default=False, help='debug')
     arg_parser.add_argument('-s', '--channelsecret', type=str, help='your channel secret')
     arg_parser.add_argument('-c', '--channelid', type=str, help='your channel id')
+    arg_parser.add_argument('-t', '--testing', default=False, help='testing mode')
     # If executing program on remote (not localhost), the host needs to be set 0.0.0.0
-    arg_parser.add_argument('-t', '--host', type=str, default='0.0.0.0', help='your channel id')
+    arg_parser.add_argument('-o', '--host', type=str, default='0.0.0.0', help='your host')
     options = arg_parser.parse_args()
 
     if options.channelid:
@@ -267,5 +303,10 @@ if __name__ == "__main__":
             print('Please set up Channel Secret by environment parameter(LINE_LOGIN_CHANNEL_SECRET) or'
                   ' use --channelsecret option')
             exit(1)
+
+    if options.debug:
+        app.config['TESTING'] = True
+    else:
+        app.config['TESTING'] = False
 
     app.run(debug=options.debug, port=options.port, host=options.host)
