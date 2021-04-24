@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from flask import Flask, render_template, redirect, request, abort, session, make_response
+from flask import Flask, render_template, redirect, request, abort, make_response
 import token_manager
 import urllib.parse
 import requests
@@ -17,8 +17,9 @@ import sqlite3
 # Cookies
 SESSION_COOKIE_SECURE = True # https only
 SESSION_HTTPONLY = True   # httponly
-SESSION_ID_NAME = '__session_key'
-COOKIE_TIME = 60 * 60 * 24 * 30  # 30 days
+SESSION_KEY_COOKIE_NAME = '__session_key'
+LOGGED_IN_COOKIE_NAME = '__logged_in'
+COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
 
 
 # web page contents
@@ -48,66 +49,67 @@ def before_request():
     if app.testing:
         return
 
-    # If access static files,'/' or '/login', don't need to check.
-    if request.path.startswith('/static/') or request.path == '/login' or request.path == '/':
-        return
-
-    # check if session_id exists
-    if session.get(SESSION_ID_NAME) is not None:
+    cookies = request.cookies.to_dict()
+    if request.path == '/result' and SESSION_KEY_COOKIE_NAME in cookies and LOGGED_IN_COOKIE_NAME in cookies:
         return
     else:
-        return redirect('/')
+        abort(400)
+
+    if request.path == '/error_result' and SESSION_KEY_COOKIE_NAME in cookies:
+        return
+    else:
+        abort(400)
+
+    # Don't need to check if do not request result page.
+    return
 
 
 @app.route('/')
 def homepage():
-    name = DEFAULT_USERNAME
-    picture_url = None
-    previous_data = {}
-    logged_in = False
 
-    if SESSION_ID_NAME in session and session[SESSION_ID_NAME]:
-        session_id = session[SESSION_ID_NAME]
-        server_data = app.meta_data_manager.get_user_meta_data(session_id)
+    title = 'Line Login Sample'
+    page = 'index.html'
+    previous_data = {}
+    cookies = request.cookies.to_dict()
+    if SESSION_KEY_COOKIE_NAME in cookies and LOGGED_IN_COOKIE_NAME in cookies:
+        session_key = cookies[SESSION_KEY_COOKIE_NAME]
+        server_data = app.meta_data_manager.get_user_meta_data(session_key)
         if server_data and server_data.user_name:
-            logged_in = True
-            name = server_data.user_name
-            picture_url = server_data.user_picture_url
             for p in server_data.__dict__.keys():
                 previous_data[p] = server_data.__dict__[p]
-            previous_data[SESSION_ID_NAME] = session_id
-        else:
-            session.pop(SESSION_ID_NAME)
+            previous_data[SESSION_KEY_COOKIE_NAME] = session_key
+            return render_template(
+                page, title=title,
+                name=server_data.user_name,
+                picture_url=server_data.user_picture_url,
+                data=previous_data,
+                logged_in=True
+            )
 
-    return render_template(
-        'index.html',
-        title='Line Login Sample',
-        name=name,
-        picture_url=picture_url,
-        data=previous_data,
-        logged_in=logged_in
-    )
+    # return to default value ( delete cookies if exist)
+    response = make_response(render_template(page, title=title, name=DEFAULT_USERNAME, logged_in=False, data={}))
+    response.set_cookie(SESSION_KEY_COOKIE_NAME, 'null', max_age=0)
+    response.set_cookie(LOGGED_IN_COOKIE_NAME, 'null', max_age=0)
+    return response
 
 
 @app.route('/login', methods=["GET"])
 def login():
-    session_id = ''
-    # template session register
-    if not (SESSION_ID_NAME in session and session[SESSION_ID_NAME]):
-        session_id = token_manager.generate()
-        session[SESSION_ID_NAME] = session_id
-        app.meta_data_manager.append_user_meta_data(
-            session_id,
-            None
-        )
-    else:
-        session_id = session[SESSION_ID_NAME]
-    return redirect('/gotoauth?' + SESSION_ID_NAME + '=' + session_id)
+    # session key allocated
+    session_key = token_manager.generate()
+    response = make_response(redirect('/gotoauth?' + SESSION_KEY_COOKIE_NAME + '=' + session_key))
+    response.set_cookie(key=SESSION_KEY_COOKIE_NAME, value=session_key,
+                        max_age=COOKIE_MAX_AGE, httponly=SESSION_HTTPONLY, secure=SESSION_COOKIE_SECURE)
+    app.meta_data_manager.append_user_meta_data(
+        session_key,
+        None
+    )
+    return response
 
 
 @app.route('/gotoauth', methods=["GET"])
 def goto_authorization():
-    session_id = request.args[SESSION_ID_NAME]
+    session_id = request.args[SESSION_KEY_COOKIE_NAME]
 
     login_params = refresh_login_parameters()
     print("login params :")
@@ -187,29 +189,32 @@ def callback():
     meta_data.id_token = decoded_id_token
     meta_data.user_name = decoded_id_token.get('name')
 
-    return redirect(urllib.parse.urljoin(request.url_root, '/result'))
+    response = make_response( redirect(urllib.parse.urljoin(request.url_root, '/result')))
+    response.set_cookie(key=LOGGED_IN_COOKIE_NAME, value='1', max_age=COOKIE_MAX_AGE,
+                        httponly=SESSION_HTTPONLY, secure=SESSION_COOKIE_SECURE)
+    return response
 
 
 @app.route('/error_result', methods=['GET'])
 def error_result():
-    if not (SESSION_ID_NAME in session and session[SESSION_ID_NAME]):
-        return render_template('error_result.html')
 
-    session_id = session[SESSION_ID_NAME]
+    session_key = request.cookies.to_dict()[SESSION_KEY_COOKIE_NAME]
     error_data = None
-    meta_data = app.meta_data_manager.get_user_meta_data(session_id)
+    meta_data = app.meta_data_manager.get_user_meta_data(session_key)
     if 'error_data' in meta_data.__dict__.keys():
         error_data = meta_data.error_data
-    app.meta_data_manager.remove_user_meta_data(session_id)
-    return render_template('error_result.html', result=error_data)
+    app.meta_data_manager.remove_user_meta_data(session_key)
+
+    response = make_response(render_template('error_result.html', result=error_data))
+    response.set_cookie(key=SESSION_KEY_COOKIE_NAME, value='null', max_age=0)
+    return response
 
 
 @app.route('/result', methods=['GET'])
 def result():
-    if not (SESSION_ID_NAME in session and session[SESSION_ID_NAME]):
-        return render_template('error_result.html', result='Session Not Found')
-    session_id = session[SESSION_ID_NAME]
-    meta_data = app.meta_data_manager.get_user_meta_data(session_id)
+    cookies = request.cookies.to_dict()
+    session_key = cookies[SESSION_KEY_COOKIE_NAME]
+    meta_data = app.meta_data_manager.get_user_meta_data(session_key)
 
     return render_template('result.html',
                            title='Login Result',
@@ -224,8 +229,10 @@ def result():
 
 @app.route('/logout')
 def logout():
-    session.pop(SESSION_ID_NAME, None)
-    return redirect("/")
+    response = make_response(redirect("/"))
+    response.delete_cookie(SESSION_KEY_COOKIE_NAME)
+    response.delete_cookie(LOGGED_IN_COOKIE_NAME)
+    return response
 
 
 def request_access_token(code, code_verifier):
