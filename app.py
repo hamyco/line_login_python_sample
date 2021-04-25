@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from flask import Flask, render_template, redirect, request, abort, make_response
+from flask import Flask, render_template, redirect, request, abort, make_response, g
 import token_manager
 import urllib.parse
 import requests
@@ -28,17 +28,18 @@ app = Flask(__name__)
 
 # Server setting
 # Reference:  https://flask.palletsprojects.com/en/1.1.x/config/
-app.config['SECRET_KEY'] = 'd25Pu2LLrBdFfGtNe16v5Q'
+app.secret_key = token_manager.generate()
 
 # If using proxy(like nginx, ngrok), the http will request.url_root will return http (not https)
 # In this case, we need to fix the proxy.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
-app.secret_key = token_manager.generate()
-app.code_challenge_method = 'S256'
-app.line_api_domain = 'https://access.line.me/'
-app.redirect_url_dir = '/callback'
-app.authorize_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/authorize')
-app.token_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/token')
+
+CODE_CHALLENGE_METHOD = 'S256'
+LINE_AUTH_DOMAIN = 'https://access.line.me'
+LINE_API_DOMAIN = 'https://api.line.me'
+REDIRECT_URL_DIR = '/callback'
+AUTHORIZE_API_URL = urllib.parse.urljoin(LINE_AUTH_DOMAIN, 'oauth2/v2.1/authorize')
+TOKEN_API_URL = urllib.parse.urljoin(LINE_API_DOMAIN, 'oauth2/v2.1/token')
 app.meta_data_manager = UserMetaDataManager()
 
 
@@ -146,10 +147,10 @@ def goto_authorization():
         'response_type': 'code',
         'client_id': app.line_channel_id,
         'redirect_uri': urllib.parse.quote(
-            urllib.parse.urljoin(request.url_root, app.redirect_url_dir), safe=''),
+            urllib.parse.urljoin(request.url_root, REDIRECT_URL_DIR), safe=''),
         'scope': '%20'.join(scope_list),
         # PKCE support
-        'code_challenge_method': app.code_challenge_method,
+        'code_challenge_method': CODE_CHALLENGE_METHOD,
         'code_challenge': login_params['code_challenge'],
         # state and nonce
         'state': login_params['state'],
@@ -160,11 +161,11 @@ def goto_authorization():
         p_str = k + '=' + params[k]
         url_params.append(p_str)
 
-    print('Goto authorization : ' + app.authorize_api + '?' + '&'.join(url_params))
-    return redirect(app.authorize_api + '?' + '&'.join(url_params))
+    print('Goto authorization : ' + AUTHORIZE_API_URL + '?' + '&'.join(url_params))
+    return redirect(AUTHORIZE_API_URL + '?' + '&'.join(url_params))
 
 
-@app.route(app.redirect_url_dir, methods=['GET', 'POST'])
+@app.route(REDIRECT_URL_DIR, methods=['GET', 'POST'])
 def callback():
     print(request)
     if 'state' not in request.args.keys():
@@ -250,20 +251,20 @@ def logout():
 
 
 def request_access_token(code, code_verifier):
-    uri_access_token = "https://api.line.me/oauth2/v2.1/token"
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
     data_params = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": urllib.parse.urljoin(request.url_root, app.redirect_url_dir),
+        "redirect_uri": urllib.parse.urljoin(request.url_root, REDIRECT_URL_DIR),
         "client_id": app.line_channel_id,
         "code_verifier": code_verifier,
         "client_secret": app.line_channel_secret
     }
-
+    print('Get token...')
+    print(TOKEN_API_URL)
     # トークンを取得するためにリクエストを送る
-    response_post = requests.post(uri_access_token, headers=headers, data=data_params)
+    response_post = requests.post(TOKEN_API_URL, headers=headers, data=data_params)
     return json.loads(response_post.text)
 
 
@@ -271,7 +272,7 @@ def verify_id_token(id_token, channel_secret, channel_id, nonce):
     decoded_id_token = jwt.decode(id_token,
                                   channel_secret,
                                   audience=channel_id,
-                                  issuer='https://access.line.me',
+                                  issuer=LINE_AUTH_DOMAIN,
                                   algorithms=['HS256'])
 
     # check nonce (Optional. But strongly recommended)
