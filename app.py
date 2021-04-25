@@ -109,12 +109,19 @@ def login():
 
 @app.route('/gotoauth', methods=["GET"])
 def goto_authorization():
-    session_id = request.args[SESSION_KEY_COOKIE_NAME]
+    session_key = request.args[SESSION_KEY_COOKIE_NAME]
 
     login_params = refresh_login_parameters()
     print("login params :")
     print(login_params)
-    meta_data = app.meta_data_manager.get_user_meta_data(session_id)
+    meta_data = app.meta_data_manager.get_user_meta_data(session_key)
+
+    # if state is not null, that means same request called more than once.
+    # At this case, this request will be discarded.
+    if 'state' in meta_data.__dict__.keys():
+        if meta_data.state is not None:
+            return
+
     meta_data.state = login_params['state']
     meta_data.nonce = login_params['nonce']
     meta_data.code_verifier = login_params['code_verifier']
