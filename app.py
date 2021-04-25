@@ -42,6 +42,25 @@ app.token_api = urllib.parse.urljoin(app.line_api_domain, 'oauth2/v2.1/token')
 app.meta_data_manager = UserMetaDataManager()
 
 
+@app.before_first_request
+def init():
+    print('Initialize environment parameters...')
+    if 'line_channel_id' not in app.__dict__.keys():
+        if os.getenv('LINE_LOGIN_CHANNEL_ID'):
+            app.line_channel_id = os.environ['LINE_LOGIN_CHANNEL_ID']
+        else:
+            print('Please set up Channel ID by environment parameter(LINE_LOGIN_CHANNEL_ID) or use --channelid option')
+            exit(1)
+
+    if 'line_channel_secret' not in app.__dict__.keys():
+        if os.getenv('LINE_LOGIN_CHANNEL_SECRET'):
+            app.line_channel_secret = os.environ['LINE_LOGIN_CHANNEL_SECRET']
+        else:
+            print('Please set up Channel Secret by environment parameter(LINE_LOGIN_CHANNEL_SECRET) or'
+                  ' use --channelsecret option')
+            exit(1)
+
+
 @app.before_request
 def before_request():
     cookies = request.cookies.to_dict()

@@ -8,7 +8,6 @@ gunicorn==20.1.0
 idna==2.10
 itsdangerous==1.1.0
 Jinja2==2.11.3
-line-bot-sdk==1.19.0
 MarkupSafe==1.1.1
 psycopg2-binary==2.8.6
 PyJWT==2.0.1
