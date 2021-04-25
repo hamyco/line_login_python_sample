@@ -7,15 +7,13 @@ import requests
 import json
 import jwt
 import os
-from datetime import datetime
 from argparse import ArgumentParser
 from werkzeug.middleware.proxy_fix import ProxyFix
 from meta_data_manager import UserMetaDataManager
-import sqlite3
 
 
 # Cookies
-SESSION_COOKIE_SECURE = True # https only
+SESSION_COOKIE_SECURE = True  # https only
 SESSION_HTTPONLY = True   # httponly
 SESSION_KEY_COOKIE_NAME = '__session_key'
 LOGGED_IN_COOKIE_NAME = '__logged_in'
@@ -46,19 +44,12 @@ app.meta_data_manager = UserMetaDataManager()
 
 @app.before_request
 def before_request():
-    if app.testing:
-        return
-
     cookies = request.cookies.to_dict()
     if request.path == '/result' and SESSION_KEY_COOKIE_NAME in cookies and LOGGED_IN_COOKIE_NAME in cookies:
         return
-    else:
-        abort(400)
 
     if request.path == '/error_result' and SESSION_KEY_COOKIE_NAME in cookies:
         return
-    else:
-        abort(400)
 
     # Don't need to check if do not request result page.
     return
@@ -157,9 +148,6 @@ def goto_authorization():
 @app.route(app.redirect_url_dir, methods=['GET', 'POST'])
 def callback():
     print(request)
-    state = ''
-    meta_data = None
-
     if 'state' not in request.args.keys():
         print("No state from login server")
         abort(400)
@@ -196,7 +184,7 @@ def callback():
     meta_data.id_token = decoded_id_token
     meta_data.user_name = decoded_id_token.get('name')
 
-    response = make_response( redirect(urllib.parse.urljoin(request.url_root, '/result')))
+    response = make_response(redirect(urllib.parse.urljoin(request.url_root, '/result')))
     response.set_cookie(key=LOGGED_IN_COOKIE_NAME, value='1', max_age=COOKIE_MAX_AGE,
                         httponly=SESSION_HTTPONLY, secure=SESSION_COOKIE_SECURE)
     return response
@@ -294,7 +282,6 @@ if __name__ == "__main__":
     arg_parser.add_argument('-d', '--debug', default=False, help='debug')
     arg_parser.add_argument('-s', '--channelsecret', type=str, help='your channel secret')
     arg_parser.add_argument('-c', '--channelid', type=str, help='your channel id')
-    arg_parser.add_argument('-t', '--testing', default=False, help='testing mode')
     # If executing program on remote (not localhost), the host needs to be set 0.0.0.0
     arg_parser.add_argument('-o', '--host', type=str, default='0.0.0.0', help='your host')
     options = arg_parser.parse_args()
@@ -317,10 +304,5 @@ if __name__ == "__main__":
             print('Please set up Channel Secret by environment parameter(LINE_LOGIN_CHANNEL_SECRET) or'
                   ' use --channelsecret option')
             exit(1)
-
-    if options.debug:
-        app.config['TESTING'] = True
-    else:
-        app.config['TESTING'] = False
 
     app.run(debug=options.debug, port=options.port, host=options.host)
